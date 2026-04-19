@@ -9,8 +9,24 @@ OpenCode plugin that automatically rewrites npm/pip commands to pnpm/uv.
 - `python -m pip install` → `uv pip`
 - `python script.py` → `uv run python script.py`
 - `npx xxx` → `pnpm dlx xxx`
+- `python -m venv` → `uv venv` (optional)
+- `virtualenv` → `uv venv` (optional)
 
 Commands starting with uv, pnpm, or rtk are not modified.
+
+## Configuration
+
+Add to your package.json:
+
+```json
+{
+  "package-manager-hook": {
+    "enableVenv": true
+  }
+}
+```
+
+- `enableVenv`: Enable rewriting venv/virtualenv commands to uv venv (default: true)
 
 ## Installation
 

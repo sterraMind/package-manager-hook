@@ -1,5 +1,10 @@
 import type { Plugin } from "@opencode-ai/plugin"
 
+export interface Options {
+  /** Enable rewriting python venv commands to uv venv (default: true) */
+  enableVenv?: boolean
+}
+
 // Command prefixes that should not be rewritten
 const SKIP_PREFIXES = [/^uv\b/i, /^pnpm\b/i, /^rtk\b/i]
 
@@ -8,6 +13,13 @@ const UV_PATTERNS = [
   { pattern: /^(python(?:\d+(?:\.\d+)*)?|py)\s+-m\s+pip(?=\s|$)/i, replacement: "uv pip" },
   { pattern: /^pip(?:\d+(?:\.\d+)*)?(?=\s|$)/i, replacement: "uv pip" },
   { pattern: /^(python(?:\d+(?:\.\d+)*)?|py)(?=\s|$)/i, replacement: "uv run python" },
+]
+
+// Patterns for rewriting venv/virtualenv commands to uv venv
+const VENV_PATTERNS = [
+  { pattern: /^(python(?:\d+(?:\.\d+)*)?|py)\s+-m\s+venv(?=\s|$)/i, replacement: "uv venv" },
+  { pattern: /^(python(?:\d+(?:\.\d+)*)?|py)\s+-m\s+virtualenv(?=\s|$)/i, replacement: "uv venv" },
+  { pattern: /^virtualenv(?=\s|$)/i, replacement: "uv venv" },
 ]
 
 // Patterns for rewriting npm commands to pnpm
@@ -37,7 +49,7 @@ function shouldSkip(command: string): boolean {
   return SKIP_PREFIXES.some((pattern) => pattern.test(command.trim()))
 }
 
-export const PackageManagerHook: Plugin = async ({ $ }) => {
+export const PackageManagerHook: Plugin = async ({ $, directory }) => {
   const [hasUv, hasPnpm] = await Promise.all([
     commandExists($, "uv"),
     commandExists($, "pnpm"),
@@ -46,6 +58,21 @@ export const PackageManagerHook: Plugin = async ({ $ }) => {
   if (!hasUv && !hasPnpm) {
     console.warn("[package-manager-hook] uv and pnpm not found in PATH — plugin disabled")
     return {}
+  }
+
+  // Load plugin options from package.json or config
+  let options: Options = { enableVenv: true }
+  const configPath = `${directory}/package.json`
+  const configResult = await $`cat ${configPath}`.quiet().nothrow().text()
+  if (configResult) {
+    try {
+      const pkg = JSON.parse(configResult)
+      if (pkg["package-manager-hook"]) {
+        options = { ...options, ...pkg["package-manager-hook"] }
+      }
+    } catch {
+      // ignore parse errors
+    }
   }
 
   return {
@@ -66,6 +93,9 @@ export const PackageManagerHook: Plugin = async ({ $ }) => {
 
       if (hasUv) {
         rewritten = rewriteCommand(rewritten, UV_PATTERNS)
+        if (options.enableVenv) {
+          rewritten = rewriteCommand(rewritten, VENV_PATTERNS)
+        }
       }
 
       if (hasPnpm) {
