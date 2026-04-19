@@ -2,15 +2,10 @@
   "name": "package-manager-hook",
   "version": "1.0.0",
   "description": "OpenCode plugin that rewrites npm/pip commands to pnpm/uv",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "src/index.ts",
   "type": "module",
-  "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch"
-  },
   "files": [
-    "dist"
+    "src"
   ],
   "keywords": [
     "opencode",
